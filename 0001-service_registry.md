@@ -139,3 +139,49 @@ void service_registry::notify_fork(execution_context::fork_event fork_ev)
 }
 ```
 This function will iterate all the services in the linked list the notify each of them by the ***fork_event***, and it has some *"iteration order tricky"* in different event cases(*I still don't understand the purpose of this*). And it also has a *"locking tricky"* before the iteration.(*The purpose of it may be to avoid locking recursively in my opinion*)
+
+### **use_service**
+
+```c++
+// Get the service object corresponding to the specified service type. Will
+// create a new service object automatically if no such object already
+// exists. Ownership of the service object is not transferred to the caller.
+template <typename Service>
+Service& use_service();
+
+// Get the service object corresponding to the specified service type. Will
+// create a new service object automatically if no such object already
+// exists. Ownership of the service object is not transferred to the caller.
+// This overload is used for backwards compatibility with services that
+// inherit from io_context::service.
+template <typename Service>
+Service& use_service(io_context& owner);
+```
+Implementation:
+```c++
+template <typename Service>
+Service& service_registry::use_service()
+{
+    execution_context::service::key key;
+    init_key<Service>(key, 0);
+    factory_type factory = &service_registry::create<Service, execution_context>;
+    return *static_cast<Service*>(do_use_service(key, factory, &owner_));
+}
+
+template <typename Service>
+Service& service_registry::use_service(io_context& owner)
+{
+    execution_context::service::key key;
+    init_key<Service>(key, 0);
+    factory_type factory = &service_registry::create<Service, io_context>;
+    return *static_cast<Service*>(do_use_service(key, factory, &owner));
+}
+```
+
+This two function use template function ***init_key*** to initialize a unique *key* value to identify a particular *Service* type. As for how it is implemented, I will explain in detail later in next section.
+Then the functions call ***do_use_service*** to create the Service and add it to the linked list if there has not been a same type of *Service*(key is not matched) added in the linked list.
+
+### **init_key**
+
+
+
