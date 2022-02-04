@@ -215,3 +215,58 @@ void service_registry::init_key_from_id(execution_context::service::key& key,
   key.id_ = &id;
 }
 ```
+
+### add_service 
+```c++
+  // Add a service object. Throws on error, in which case ownership of the
+  // object is retained by the caller.
+  template <typename Service>
+  void add_service(Service* new_service);
+```
+Implementation:
+```c++
+template <typename Service>
+void service_registry::add_service(Service* new_service)
+{
+  execution_context::service::key key;
+  init_key<Service>(key, 0);
+  return do_add_service(key, new_service);
+}
+```
+The ***do_add_service*** function process the operations.
+```c++
+void service_registry::do_add_service(
+    const execution_context::service::key& key,
+    execution_context::service* new_service)
+{
+  if (&owner_ != &new_service->context())
+    asio::detail::throw_exception(invalid_service_owner());
+
+  asio::detail::mutex::scoped_lock lock(mutex_);
+
+  // Check if there is an existing service object with the given key.
+  execution_context::service* service = first_service_;
+  while (service)
+  {
+    if (keys_match(service->key_, key))
+      asio::detail::throw_exception(service_already_exists());
+    service = service->next_;
+  }
+
+  // Take ownership of the service object.
+  new_service->key_ = key;
+  new_service->next_ = first_service_;
+  first_service_ = new_service;
+}
+```
+
+This function just do some checking and add a pre-allocated and pre-initialized Service object to the linked list.
+
+### **has_service**
+```c++
+  // Check whether a service object of the specified type already exists.
+  template <typename Service>
+  bool has_service() const;
+```
+
+This function need no more explain.
