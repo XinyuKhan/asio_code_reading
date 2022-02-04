@@ -179,7 +179,7 @@ Service& service_registry::use_service(io_context& owner)
 ```
 
 This two function use template function ***init_key*** to initialize a unique *key* value to identify a particular *Service* type. As for how it is implemented, I will explain in detail later in next section.
-Then the functions call ***do_use_service*** to create the Service and add it to the linked list if there has not been a same type of *Service*(key is not matched) added in the linked list. ***do_use_service*** function will throw an exception if there has been a same type of *Service* added in the linked list.
+Then the functions call ***do_use_service*** to create the Service and add it to the linked list if there has not been a same type of *Service*(key is not matched) added in the linked list.
 
 ### **init_key**
 
