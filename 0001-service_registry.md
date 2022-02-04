@@ -179,9 +179,39 @@ Service& service_registry::use_service(io_context& owner)
 ```
 
 This two function use template function ***init_key*** to initialize a unique *key* value to identify a particular *Service* type. As for how it is implemented, I will explain in detail later in next section.
-Then the functions call ***do_use_service*** to create the Service and add it to the linked list if there has not been a same type of *Service*(key is not matched) added in the linked list.
+Then the functions call ***do_use_service*** to create the Service and add it to the linked list if there has not been a same type of *Service*(key is not matched) added in the linked list. ***do_use_service*** function will throw an exception if there has been a same type of *Service* added in the linked list.
 
 ### **init_key**
 
+There are two versions of ***init_key*** function implementation. The function use **typeid**(the c++ rtti feature) as *service_key* to distinguish different type of service if the **ASIO_NO_TYPEID** macro is defined. Otherwise, it use the address of a static field that is bind the  Service type as *service_key*
 
+version 1:
+```c++
+#if !defined(ASIO_NO_TYPEID)
+template <typename Service>
+void service_registry::init_key(execution_context::service::key& key,
+    typename enable_if<
+      is_base_of<typename Service::key_type, Service>::value>::type*)
+{
+  key.type_info_ = &typeid(typeid_wrapper<Service>);
+  key.id_ = 0;
+}
 
+template <typename Service>
+void service_registry::init_key_from_id(execution_context::service::key& key,
+    const service_id<Service>& /*id*/)
+{
+  key.type_info_ = &typeid(typeid_wrapper<Service>);
+  key.id_ = 0;
+}
+#endif // !defined(ASIO_NO_TYPEID)
+```
+version 2:
+```c++
+void service_registry::init_key_from_id(execution_context::service::key& key,
+    const execution_context::id& id)
+{
+  key.type_info_ = 0;
+  key.id_ = &id;
+}
+```
