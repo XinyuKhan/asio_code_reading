@@ -82,5 +82,18 @@ namespace asio;
  */
 ```
 
+### 方法对象运行上下文
+所谓 ***执行上下文***（***execution context***）表示一个用于方法对象执行的环境。 ***io_context*** 是一个 ***执行上下文*** 的示例类。
+#### **execution_context** 类和**服务** （**services**）
 
+***execution_context*** 类实现了一个**可扩展的（extensible）**、**类型安全的（type-safe）**、
+**多态的（polymorphic）** 并使用**服务类型（service type）**索引的**服务集合（service set）**
+
+服务存在的目的是用来管理在一个执行上下文中共享的的资源。例如，定时器可能基于一个单一的定时器队列来实现，那么这个队列会被存储在一个服务对象中。
+
+对于执行上下文中的服务的访问是通过 ***use_service()*** ,  ***add_service()*** 和 ***has_service()*** 这三个方法模板来实现。
+
+在一个 ***use_service\<Service\>()*** 的调用中，类型模板参数用于选择一个服务类型并且访问该类型的成员。如果Service所指示的服务类型不在该执行上下文中，那么一个该服务类型的对象将会被创建并且添加到该执行上下文中。c++程序可以通过 ***has_service\<Service\>()*** 模板方法的调用来检查该执行上下文是否已经实现了这个特定类型的服务。
+
+可以通过 ***add_service\<Service\>()*** 函数模板的调用来显式地将服务对象（***Service objects***）加入到执行上下文中。如果添加的服务已经存在于该执行上下文中， ***service_already_exists*** 异常会被抛出；如果该服务的拥有者不是该执行上下文对象， ***invalid_service_owner*** 异常会被抛出。
 
