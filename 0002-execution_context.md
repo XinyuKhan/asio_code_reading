@@ -97,3 +97,16 @@ namespace asio;
 
 可以通过 ***add_service\<Service\>()*** 函数模板的调用来显式地将服务对象（***Service objects***）加入到执行上下文中。如果添加的服务已经存在于该执行上下文中， ***service_already_exists*** 异常会被抛出；如果该服务的拥有者不是该执行上下文对象， ***invalid_service_owner*** 异常会被抛出。
 
+一旦通过调用方法模板 ***add_service\<Service\>()*** 从一个执行上下文对象中获取一个服务（service）的引用，那么只要这个引用的所有者执行上下文对象存在，这个引用就会始终保持可用状态。
+
+所有的服务类型的实现都把 ***execution_context::service*** 作为它们的公共基类。自定义的服务类可以通过继承这个基类来实现，这样，就可以通过上述的方式将该自定义服务类对象加入到一个执行上下文对象中。
+
+#### 作为基类的执行上下文类
+
+***execution_context*** 类只能作为一个具体的执行上下文类的基类，***io_context*** 类就这样一个子类的例子。
+
+在析构时，***execution_context*** 类的子类必须先调用 ***execution_context::shutdown()*** 函数，再调用 ***execution_context::destroy()*** 函数。
+
+这样的析构过程可以通过使用 ***shared_ptr<>*** 来简化程序的资源管理。在对象的生命周期和一个连接（connection）的生命周期绑定的情况下，一个指向该对象的 ***shared_ptr<>*** 会被绑定到所有与它相关的异步操作的句柄。具体工作方式如下：
+当一个单连接断开，其所有的与之关联的异步操作会完成，其对应的句柄对象会被销毁，同时所有的指向对象的***shared_ptr<>*** 会被销毁。
+为了终止整个程序，io_context的成员函数stop()被调用以尽快终止所有的run()调用。io_context的析构函数调用shutdown()和destroy()来销毁所有的等待的句柄，使得所有指向连接对象的shared_ptr被销毁。
