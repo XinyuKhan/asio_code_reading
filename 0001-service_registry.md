@@ -299,10 +299,12 @@ classDiagram
     -owner_ : execution_context&
     -next_ : service
   }
-  service ..> key : Define & Dependency
+  service ..> key : Define
+  key ..> service : Distinct
   class key {
     +type_info_ : std::type_info*
     +id_ : execution_context::id*
   }
+  
 
 ```
