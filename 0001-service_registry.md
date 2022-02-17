@@ -270,3 +270,39 @@ This function just do some checking and add a pre-allocated and pre-initialized 
 ```
 
 This function need no more explain.
+
+
+## Graph
+
+```mermaid
+classDiagram
+  noncopyable --|> service_registry : Inheritance
+  class service_registry {
+    -mutex_ : asio::detail::mutex
+    -owner_ : execution_context
+    -first_service_ : execution_context::service*
+    +shutdown_services()
+    +destroy_services()
+    +notify_fork(execution_context::fork_event fork_ev)
+    +use_service() ref~Service~
+    +use_service(ref~io_context~ owner) ref~Service~
+    +add_service()
+    +add_service(ptr~Service~ new_service)
+    +has_service() bool
+  }
+  noncopyable --|> service : Inheritance
+  service_registry "1" --> "n" service : Contains
+  class service {
+    -shutdown()*
+    -notify_fork(execution_context::fork_event event)*
+    -key_ : key
+    -owner_ : execution_context&
+    -next_ : service
+  }
+  service ..> key : Define & Dependency
+  class key {
+    +type_info_ : std::type_info*
+    +id_ : execution_context::id*
+  }
+
+```
