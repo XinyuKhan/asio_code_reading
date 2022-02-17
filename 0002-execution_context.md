@@ -107,6 +107,6 @@ namespace asio;
 
 在析构时，***execution_context*** 类的子类必须先调用 ***execution_context::shutdown()*** 函数，再调用 ***execution_context::destroy()*** 函数。
 
-这样的析构过程可以通过使用 ***shared_ptr<>*** 来简化程序的资源管理。在对象的生命周期和一个连接（connection）的生命周期绑定的情况下，一个指向该对象的 ***shared_ptr<>*** 会被绑定到所有与它相关的异步操作的句柄。具体工作方式如下：
-当一个单连接断开，其所有的与之关联的异步操作会完成，其对应的句柄对象会被销毁，同时所有的指向对象的***shared_ptr<>*** 会被销毁。
-为了终止整个程序，io_context的成员函数stop()被调用以尽快终止所有的run()调用。io_context的析构函数调用shutdown()和destroy()来销毁所有的等待的句柄，使得所有指向连接对象的shared_ptr被销毁。
+这样的析构过程可以通过使用 ***shared_ptr<>*** 来简化程序的资源管理。在对象的生命周期和一个连接（***connection***）的生命周期绑定的情况下，一个指向该对象的 ***shared_ptr<>*** 会被绑定到所有与它相关的异步操作的句柄。具体工作方式如下：
+当一个单连接断开，其所有的与之关联的异步操作会完成，其对应的句柄对象会被销毁，同时所有的指向对象的 ***shared_ptr<>*** 会被销毁。
+为了终止整个程序，io_context的成员函数stop()被调用以尽快终止所有的run()调用。io_context的析构函数调用shutdown()和destroy()来销毁所有的等待的句柄，使得所有指向连接对象的 ***shared_ptr*** 被销毁。
