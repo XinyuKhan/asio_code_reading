@@ -338,12 +338,11 @@ classDiagram
 
 它们之间的引用关系如下：
 
-```mermaid
+@startmermaid
 classDiagram
     execution_context "1" --> "1" service_registry : Contains
     service_registry "1" --> "n" service : Contains
-
-```
+@endmermaid
 
 根据 [0001-service_registry](0001-service_registry.md) 和 [0002-execution_context](0002-execution_context.md) 章节中的介绍， ***scheduler*** 类型对象可以被注册到 ***io_context*** 类型对象中。在 ***io_context*** 代码中，这一注册过程是在 ***add_impl()*** 方法中实现的。具体代码如下：
 
