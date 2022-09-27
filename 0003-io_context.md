@@ -188,6 +188,173 @@ namespace asio::detail
 
 #### 从处理程序中抛出异常的影响
 
-如果一个异常从处理程序中被抛出，那么这个异常被允许通过抛出它的线程的run(), run_one(), run_for(), run_until(), poll() 或 poll_one() 方法调用传播，其它调用上述任何方法的线程不会受到影响，然后捕获该异常就变成了应用程序的职责了。
+如果一个异常从处理程序中被抛出，那么这个异常被允许通过抛出它的线程的 ***run()*** , ***run_one()*** , ***run_for()*** , ***run_until()*** , ***poll()*** 或 ***poll_one()*** 方法调用传播，其它调用上述任何方法的线程不会受到影响，然后捕获该异常就变成了应用程序的职责了。
 
-TODO: to be continue.
+在异常被捕获以后，无需对于 ***restart()*** 的干预性调用，***run()*** , ***run_one()*** , ***run_for()*** , ***run_until()*** , ***poll()***  或 ***poll_one()*** 方法调用可能会被重新启动，这就在不影响io_context的对象线程池中的其它线程的情况下，允许当前线程重新加入到线程池中。
+
+例如：
+
+```c++
+...
+for (;;)
+{
+    try
+    {
+        io_context.run();
+        break; // run() exited normally
+    }
+    catch (my_exception& e)
+    {
+        // Deal with exception as appropriate.
+    }
+}
+```
+
+#### 向io_context对象提交任意一个任务
+
+为了向 ***io_context*** 对象提交一个任务方法，可以使用 ***asio::dispatch*** , ***asio::post*** 或者 ***asio::defer*** 方法。
+
+例如：
+
+```c++
+void my_task()
+{
+    ...
+}
+
+...
+
+asio::io_context io_context;
+
+// Submit a function to the io_context.
+asio::post(io_context, my_task);
+
+// Submit a lambda object to the io_context.
+asio::post(io_context,
+    []()
+    {
+       ...
+    });
+
+// Run the io_context until it runs out of work.
+io_context.run(); 
+```
+#### 阻止 ***io_context*** 退出
+
+有些应用在没有工作需要处理的时候，可能需要阻止一个 ***io_context*** 对象的 ***run()*** 调用返回。例如， ***io_context*** 对象可能在应用的的异步操作之前事先被运行在一个后台线程之中。使用 ***make_work_guard*** 方法可以创建一个 ***asio::executeor_work_guard<io_context::executor_type>*** 类型的对象来使 ***run()*** 调用始终保持运行。
+
+```c++
+asio::io_context io_context;
+asio::executor_work_guard<asio::io_context::executor_type> work
+    = asio::make_work_guard(io_context);
+...
+```
+
+应用程序需要调用 ***io_context*** 对象的 ***stop()*** 成员方法实现关闭，这将导致 ***io_context*** 的 ***run()*** 调用尽可能快的返回，并放弃未完成的操作并且不允许调度准备好的处理程序。
+
+或者，如果应用程序要求允许所有操作和处理程序正常完成，则可以显式重置工作对象.
+
+```c++
+asio::io_context io_context;
+asio::executor_work_guard<asio::io_context::executor_type> work
+    = asio::make_work_guard(io_context);
+...
+work.reset(); // Allow run() to exit. 
+```
+
+## Contructor
+
+***io_context*** 类拥有两个构造方法，声明和定义如下
+
+**Decleration:**:
+
+```c++
+
+  /// Constructor.
+  ASIO_DECL io_context();
+
+  /// Constructor.
+  /**
+   * Construct with a hint about the required level of concurrency.
+   *
+   * @param concurrency_hint A suggestion to the implementation on how many
+   * threads it should allow to run simultaneously.
+   */
+  ASIO_DECL explicit io_context(int concurrency_hint);
+```
+
+**Defination:**
+
+```c++
+
+io_context::io_context()
+  : impl_(add_impl(new impl_type(*this,
+          ASIO_CONCURRENCY_HINT_DEFAULT, false)))
+{
+}
+
+io_context::io_context(int concurrency_hint)
+  : impl_(add_impl(new impl_type(*this, concurrency_hint == 1
+          ? ASIO_CONCURRENCY_HINT_1 : concurrency_hint, false)))
+{
+}
+```
+
+从构造函数的的定义来看，***io_context*** 对象的构造实际上是对 ***impl_type*** 对象的构造， ***impl_type*** 的具体实现根据平台不同而不同，如下所示：
+
+```c++
+  typedef detail::io_context_impl impl_type;
+```
+
+```c++
+
+namespace asio {
+
+namespace detail {
+#if defined(ASIO_HAS_IOCP)
+  typedef win_iocp_io_context io_context_impl;
+  class win_iocp_overlapped_ptr;
+#else
+  typedef scheduler io_context_impl;
+#endif
+...
+} // namespace detail
+...
+} // namespace asio
+```
+
+由此可见， ***impl_type*** 在类unix系统中的实际类型为 ***asio::detail::scheduler***，根据 ***scheduler*** 类的定义， ***scheduler*** 类是 ***execution_context_service_base\<scheduler\>*** 的子类；于此同时，***io_context*** 也是 ***execution_context*** 的子类。他们的继承关系如下：
+
+```mermaid
+classDiagram
+    noncopyable --|> service : Inheritance
+    service --|> execution_context_service_base : Inheritance
+    execution_context_service_base --|> scheduler : Inheritance
+
+    noncopyable --|> execution_context : Inheritance
+    execution_context --|> io_context : Inheritance
+
+```
+
+它们之间的引用关系如下：
+
+```mermaid
+classDiagram
+    execution_context "1" --> "1" service_registry : Contains
+    service_registry "1" --> "n" service : Contains
+
+```
+
+根据 [0001-service_registry](0001-service_registry.md) 和 [0002-execution_context](0002-execution_context.md) 章节中的介绍， ***scheduler*** 类型对象可以被注册到 ***io_context*** 类型对象中。在 ***io_context*** 代码中，这一注册过程是在 ***add_impl()*** 方法中实现的。具体代码如下：
+
+```c++
+io_context::impl_type& io_context::add_impl(io_context::impl_type* impl)
+{
+  asio::detail::scoped_ptr<impl_type> scoped_impl(impl);
+  asio::add_service<impl_type>(*this, scoped_impl.get());
+  return *scoped_impl.release();
+}
+```
+
+总结来看，在类unix系统中，***io_context*** 其实是对 ***scheduler*** 的一种包装，***scheduler*** 的实现细节会在后续的章节中予以介绍。
+
